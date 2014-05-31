@@ -165,7 +165,7 @@ ja:
   error_file_storage_directory_does_not_exist: ファイル保存フォルダが存在せず作ることもできません
   error_file_can_not_be_created: ファイルを保存フォルダに作ることができません
   error_wrong_zip_encoding: Zip エンコーディングが正しくありません
-  warning_xapian_not_available: Xapian が利用できる状態になっていません
+  warning_estraier_not_available: Hyper Estraierが利用できる状態になっていません
   menu_dmsf: DMSF
   label_physical_file_delete: 物理ファイルの削除
   user_is_not_project_member: あなたはプロジェクトのメンバーではありません
