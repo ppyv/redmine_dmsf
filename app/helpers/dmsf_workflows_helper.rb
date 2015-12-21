@@ -1,6 +1,8 @@
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2013   Karel Picman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -23,11 +25,15 @@ module DmsfWorkflowsHelper
     principal_count = scope.count
     principal_pages = Redmine::Pagination::Paginator.new principal_count, 10, params['page']
     principals = scope.offset(principal_pages.offset).limit(principal_pages.per_page).all
-
-    if dmsf_workflow_step_assignment_id
-      s = content_tag('div', principals_radio_button_tags('step_action', principals), :id => 'users_for_delegate')
-    else
-      s = content_tag('div', principals_check_box_tags('user_ids[]', principals), :id => 'users')
+    
+    if dmsf_workflow_step_assignment_id      
+      s = content_tag('div',
+        content_tag('div', principals_radio_button_tags('user_ids[]', principals), :id => 'users_for_delegate'),
+        :class => 'objects-selection')
+    else      
+      s = content_tag('div',
+        content_tag('div', principals_check_box_tags('user_ids[]', principals), :id => 'users'),
+        :class => 'objects-selection')
     end
 
     links = pagination_links_full(principal_pages, principal_count, :per_page_links => false) {|text, parameters, options|
@@ -48,10 +54,36 @@ module DmsfWorkflowsHelper
   end   
   
   def dmsf_workflows_for_select(project, dmsf_workflow_id)
-    options = Array.new    
-    DmsfWorkflow.where(['project_id = ? OR project_id IS NULL', project.id]).each do |wf|
-      options << [wf.name, wf.id]
-    end
+    options = Array.new        
+    DmsfWorkflow.sorted.where(['project_id = ? OR project_id IS NULL', project.id]).each do |wf|
+      if wf.project_id
+        options << [wf.name, wf.id]
+      else
+        options << ["#{wf.name} (global)", wf.id]
+      end
+    end        
+    options_for_select(options, :selected => dmsf_workflow_id)
+  end  
+  
+  def dmsf_all_workflows_for_select(dmsf_workflow_id)
+    options = Array.new        
+    options << ['', 0]    
+    DmsfWorkflow.sorted.all.each do |wf|            
+      if wf.project_id
+        prj = Project.find_by_id wf.project_id
+        if User.current.allowed_to?(:manage_workflows, prj)
+          # Local approval workflows
+          if prj
+            options << ["#{wf.name} (#{prj.name})", wf.id]
+          else
+            options << [wf.name, wf.id]
+          end
+        end
+      else
+        # Global approval workflows
+        options << [wf.name, wf.id]
+      end      
+    end            
     options_for_select(options, :selected => dmsf_workflow_id)
   end  
   

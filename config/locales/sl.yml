@@ -1,7 +1,9 @@
+# encoding: utf-8
+# 
 # Redmine plugin for Document Management System "Features"
 #
 # Copyright (C) 2011 <zdravko.balorda@mks.si>
-#
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 #
 # This program is free software; you can redistribute it and/or
@@ -21,6 +23,8 @@
 sl:
   dmsf: Arhiv
   label_dmsf_file_plural: Arhivske datoteke
+  label_dmsf_file_revision_plural: Document revisions
+  label_dmsf_file_revision_access_plural: Document accesses
   warning_no_entries_selected: Ničesar niste izbrali
   error_email_to_must_be_entered: Email Naslovnik mora bit izbran  
   warning_file_already_locked: Datoteka že zaklenjena
@@ -59,12 +63,14 @@ sl:
   submit_create: Kreiraj
   link_create_folder: Kreiraj mapo
   title_check_uncheck_all_for_zip_download_or_email: "Označi/Odznači vse za Zip prenašanje ali email"
+  title_check_uncheck_all_for_restore_or_delete: Check/Uncheck all for restore or delete
   link_title: Naslov
   link_size: Velikost
   link_modified: Spremenjeno
   link_ver: Ver.
   link_author: Autor
-  title_check_for_zip_download_or_email: Označi za Zip prenašanje ali email
+  title_check_for_zip_download_or_email: Označi za zip prenašanje ali email
+  title_check_for_restore_or_delete: Check for restore or delete
   title_delete: Izbriši
   title_notifications_active_deactivate: "Obveščanje aktivno: Deaktiviraj"
   title_notifications_not_active_activate: "Obveščanje ni aktivno: Aktiviraj"
@@ -74,10 +80,8 @@ sl:
   title_waiting_for_approval: V postopku odobritve
   title_approved: Odobreno
   title_unlock_file: Odkleni drugim članom za posodabljanje
-  title_lock_file: Zakleni za posodabljanje
-  submit_download: Prenesi dol
-  title_download_checked: Prenesi izbrano v Zip formatu
-  submit_email: Pripni v email
+  title_lock_file: Zakleni za posodabljanje  
+  title_download_checked: Prenesi izbrano v Zip formatu  
   title_send_checked_by_email: Pošlji izbrano po elektronski pošti
   link_user_preferences: Vaše Arhivske nastavitve za projekt
   heading_send_documents_by_email: Pošlji dokumente po elektronski pošti
@@ -117,6 +121,7 @@ sl:
   option_version_same: Enako
   option_version_minor: Minor
   option_version_major: Major
+  option_version_custom: Custom
   label_new_content: Nova vsebina
   label_maximum_files_upload: Maximum naloženih datotek
   note_maximum_number_of_files_uploaded: Omejitev največjega števila datotek za nalaganje naenkrat. 0 pomeni neomejeno.
@@ -140,6 +145,8 @@ sl:
   heading_uploaded_files: Naložene datoteke
   submit_commit: Shrani
   link_documents: Dokumentacija
+  permission_view_dmsf_file_revision_accesses: View downloads in Activity stream
+  permission_view_dmsf_file_revisions: View revisions in Activity stream
   permission_view_dmsf_folders: Brskanje po dokumentih
   permission_user_preferences: Uporabniške nastavitve
   permission_view_dmsf_files: Preglej dokumente
@@ -147,6 +154,7 @@ sl:
   permission_file_manipulation: Upravljanje z datotekami  
   permission_force_file_unlock: Prisilno odkleni datoteko
   permission_manage_workflows: Manage workflows
+  permission_file_delete: Delete documents
   label_file: Datoteka
   field_folder: Pod mapo
   error_create_cycle_in_folder_dependency: naredi ciklično odvisnost med mapami
@@ -158,7 +166,7 @@ sl:
   notice_entries_deleted: Izbrane enote izbrisane
   warning_some_entries_were_not_deleted: "Nekatere enote niso izbrisane: %{entries}"  
   title_delete_checked: Izbriši izbrano
-  title_number_of_files_in_directory: Število datotek v mapi
+  title_items: items
   title_filename_for_download: Naziv datoteke za prenos dol ali Zip arhiva
   label_number_of_folders: Mapa
   label_number_of_documents: Dokumentacija
@@ -173,6 +181,7 @@ sl:
   heading_access_first: Prvi
   heading_access_last: Zadnji
   label_dmsf_updated: Arhiv posodobljen
+  label_dmsf_downloaded: Arhiv downloaded
   title_total_size_of_all_files: Skupna velikost vseh datotek v tej mapi
   project_module_dmsf: Arhiv  
   warning_no_project_to_copy_file_to: Ni projekta kamor bi kopiral datoteko
@@ -198,7 +207,7 @@ sl:
   header_minimum_filesize: Datotečna napaka.
   error_minimum_filesize: "Datoteka %{file} je 0 bytov in ne bo pripeta."
   parent_directory: Nadrejena mapa
-  note_webdav: "Webdav po vklopu lahko najdete na http://.../dmsf/webdav/"
+  note_webdav: "Webdav po vklopu lahko najdete na %{protocol}://%{domain}/dmsf/webdav/[project identifier]"
   label_webdav: Webdav delovanje
   label_dmsf_plural: "Kopiraj Arhivske datoteke in mape (%{files} datoteke v %{folders} mape)"
 
@@ -225,6 +234,7 @@ sl:
   field_label_dmsf_workflow: Approval Workflow
   field_label_dmsf_workflow_name: Approval workflow name
   label_dmsf_workflow_plural: Approval workflows
+  label_dmsf_workflow_plural_num: Approval workflows (%{count})
   label_dmsf_workflow_step: Step
   label_dmsf_workflow_step_plural: Steps
   label_dmsf_workflow_approval: Approval
@@ -280,11 +290,14 @@ sl:
   label_notifications_off: Notifications off
   field_target_file: Source file
   title_download_entries: Download entries
+  label_external: External
+  
   label_link_name: Link name
+  label_link_external_url: URL
   label_target_folder: Target folder
   label_source_folder: Source folder
   label_target_project: Target project
-  label_source_project: Source project
+  label_source_project: Source project  
   
   text_email_doc_updated_subject: "Documents of %{project} updated"
   text_email_doc_updated: has just actualized documents of
@@ -296,6 +309,20 @@ sl:
   label_display_notified_recipients: Display notified recipients
   note_display_notified_recipients: The user will be informed about all recipients of just sent the email notification.
   warning_email_notifications: "Email notifications sent to %{to}"
+  
+  link_trash_bin: Trash bin
+  title_restore: Restore
+  notice_dmsf_file_restored: The document has been successfully restored
+  notice_dmsf_folder_restored: The folder has been successfully restored
+  notice_dmsf_link_restored: The link has been successfully restored
+  title_restore_checked: Restore checked
+  error_parent_folder: "The parent folder doesn't exist"
+  
+  error_resource_or_parent_locked: Unable to complete lock - resource (or parent) is locked
+  error_parent_locked: Unable to complete lock - resource parent is locked
+  error_resource_locked: Unable to complete lock - resource is locked
+  error_lock_exclusively: unable to lock exclusively an already-locked resource  
+  error_unlock_parent_locked: Unlock failed - resource parent is locked  
   
   my:
     blocks:

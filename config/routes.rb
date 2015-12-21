@@ -42,13 +42,14 @@ RedmineApp::Application.routes.draw do
   get '/projects/:id/dmsf/new', :controller => 'dmsf', :action => 'new', :as => 'new_dmsf'
   get '/projects/:id/dmsf/edit', :controller=> 'dmsf', :action => 'edit', :as => 'edit_dmsf'
   get '/projects/:id/dmsf/edit/root', :controller=> 'dmsf', :action => 'edit_root', :as => 'edit_root_dmsf'
+  get '/projects/:id/dmsf/trash', :controller => 'dmsf', :action => 'trash', :as => 'trash_dmsf'
+  get '/projects/:id/dmsf/restore', :controller => 'dmsf', :action => 'restore', :as => 'restore_dmsf'
 
   #
   # dmsf_state controller
   #   /projects/<project>/dmsf/state
   ##
   post '/projects/:id/dmsf/state', :controller => 'dmsf_state', :action => 'user_pref_save'
-
 
   #
   #  dmsf_upload controller
@@ -57,7 +58,9 @@ RedmineApp::Application.routes.draw do
 
   post '/projects/:id/dmsf/upload/files', :controller => 'dmsf_upload', :action => 'upload_files'
   post '/projects/:id/dmsf/upload/file', :controller => 'dmsf_upload', :action => 'upload_file'
+  post '/projects/:id/dmsf/upload', :controller => 'dmsf_upload', :action => 'upload'
   post '/projects/:id/dmsf/upload/commit', :controller => 'dmsf_upload', :action => 'commit_files'
+  post '/projects/:id/dmsf/commit', :controller => 'dmsf_upload', :action => 'commit'
   
   #
   # dmsf_files controller
@@ -71,10 +74,19 @@ RedmineApp::Application.routes.draw do
   post '/dmsf/files/:id/revision/create', :controller => 'dmsf_files', :action => 'create_revision'
   get '/dmsf/files/:id/revision/delete', :controller => 'dmsf_files', :action => 'delete_revision', :as => 'delete_revision'
   get '/dmsf/files/:id/download', :controller => 'dmsf_files', :action => 'show', :download => '' # Otherwise will not route nil download param
-  get '/dmsf/files/:id/download/:download', :controller => 'dmsf_files', :action => 'show'
+  get '/dmsf/files/:id/download/:download', :controller => 'dmsf_files', :action => 'show', :as => 'download_revision'
+  get '/dmsf/files/:id/view', :controller => 'dmsf_files', :action => 'view'
   get '/dmsf/files/:id', :controller => 'dmsf_files', :action => 'show', :as => 'dmsf_file'  
   delete '/dmsf/files/:id', :controller => 'dmsf_files', :action => 'delete'
-  
+  get '/dmsf/files/:id/restore', :controller => 'dmsf_files', :action => 'restore', :as => 'restore_dmsf_file'
+
+  #
+  # url controller
+  #   /dmsf/links/<file id>
+  ##
+  get '/dmsf/links/:id/restore', :controller => 'dmsf_links', :action => 'restore', :as => 'restore_dmsf_link'
+  delete '/dmsf/links/:id', :controller => 'dmsf_links', :action => 'delete'
+
   # Just to keep backward compatibility with old external direct links
   get '/dmsf_files/:id', :controller => 'dmsf_files', :action => 'show'
   get '/dmsf_files/:id/download', :controller => 'dmsf_files', :action => 'show', :download => ''
@@ -99,7 +111,7 @@ RedmineApp::Application.routes.draw do
   # DAV4Rack implementation of Webdav [note: if changing path you'll need to update lib/redmine_dmsf/webdav/no_parse.rb also]
   #   /dmsf/webdav
   mount DAV4Rack::Handler.new(
-    :root_uri_path => "/dmsf/webdav",
+    :root_uri_path => "#{Redmine::Utils::relative_url_root}/dmsf/webdav",
     :resource_class => RedmineDmsf::Webdav::ResourceProxy,
     :controller_class => RedmineDmsf::Webdav::Controller
   ), :at => "/dmsf/webdav"
@@ -114,16 +126,18 @@ RedmineApp::Application.routes.draw do
       post 'new_action'
       get 'start'
       post 'assignment'
+      get 'new_step'
     end
   end
-  
+    
   match 'dmsf_workflows/:id/edit', :controller => 'dmsf_workflows', :action => 'add_step', :id => /\d+/, :via => :post
   match 'dmsf_workflows/:id/edit', :controller => 'dmsf_workflows', :action => 'remove_step', :id => /\d+/, :via => :delete
   match 'dmsf_workflows/:id/edit', :controller => 'dmsf_workflows', :action => 'reorder_steps', :id => /\d+/, :via => :put    
   
   # Links
   resources :dmsf_links do
-    member do      
+    member do
+      get 'restore'
     end    
   end  
   

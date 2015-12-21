@@ -1,6 +1,8 @@
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2013   Karel Picman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -28,11 +30,12 @@ class DmsfWorkflowsControllerTest < RedmineDmsf::Test::TestCase
   def setup
     @user_admin = User.find_by_id 1 # Redmine admin
     @user_member = User.find_by_id 2 # John Smith - manager
-    @user_non_member = User.find_by_id 3 #Dave Lopper
+    @user_non_member = User.find_by_id 3 # Dave Lopper
     @request.session[:user_id] = @user_member.id          
     @role_manager = Role.find_by_name('Manager')
     @role_manager.add_permission! :file_manipulation
     @role_manager.add_permission! :manage_workflows
+    @role_manager.add_permission! :file_approval
     @wfs1 = DmsfWorkflowStep.find_by_id 1 # step 1
     @wfs2 = DmsfWorkflowStep.find_by_id 2 # step 2
     @wfs3 = DmsfWorkflowStep.find_by_id 3 # step 1
@@ -96,11 +99,11 @@ class DmsfWorkflowsControllerTest < RedmineDmsf::Test::TestCase
     @role_manager.remove_permission! :manage_workflows
     get :index, :project_id => @project1.id
     assert_response :forbidden
-    @role_manager.add_permission! :manage_workflows    
+    @role_manager.add_permission! :file_approval    
     @revision2.dmsf_workflow_id = @wf1.id    
     get :start, :id => @revision2.dmsf_workflow_id,:dmsf_file_revision_id => @revision2.id
     assert_response :redirect
-    @role_manager.remove_permission! :file_manipulation
+    @role_manager.remove_permission! :file_approval
     get :start, :id => @revision2.dmsf_workflow_id,:dmsf_file_revision_id => @revision2.id
     assert_response :forbidden
     
@@ -131,13 +134,13 @@ class DmsfWorkflowsControllerTest < RedmineDmsf::Test::TestCase
   
   def test_create        
     assert_difference 'DmsfWorkflow.count', +1 do    
-      post :create, :name => 'wf3', :project_id => @project1.id
+      post :create, :dmsf_workflow => {:name => 'wf3'}, :project_id => @project1.id
     end    
     assert_redirected_to settings_project_path(@project1, :tab => 'dmsf_workflow')    
   end
   
   def test_update        
-    put :update, :id => @wf1.id, :name => 'wf1a'
+    put :update, :id => @wf1.id, :dmsf_workflow => {:name => 'wf1a'}
     @wf1.reload
     assert_equal 'wf1a', @wf1.name    
   end
@@ -152,10 +155,10 @@ class DmsfWorkflowsControllerTest < RedmineDmsf::Test::TestCase
     
   def test_add_step    
     assert_difference 'DmsfWorkflowStep.count', +1 do    
-      post :add_step, :commit => l(:dmsf_or), :step => 1, :id => @wf1.id, :user_ids =>[@user_non_member.id]
+      post :add_step, :commit => l(:dmsf_or), :step => 1, :id => @wf1.id, :user_ids => [@user_non_member.id]
     end
     assert_response :success
-    ws = DmsfWorkflowStep.first(:order => 'id DESC')    
+    ws = DmsfWorkflowStep.order('id DESC').first    
     assert_equal @wf1.id, ws.dmsf_workflow_id
     assert_equal 1, ws.step
     assert_equal @user_non_member.id, ws.user_id
@@ -168,7 +171,7 @@ class DmsfWorkflowsControllerTest < RedmineDmsf::Test::TestCase
       delete :remove_step, :step => @wfs1.id, :id => @wf1.id
     end
     assert_response :success
-    ws = DmsfWorkflowStep.where(:dmsf_workflow_id => @wf1.id).first(:order => 'id ASC')    
+    ws = DmsfWorkflowStep.where(:dmsf_workflow_id => @wf1.id).order('id ASC').first
     assert_equal 1, ws.step
   end
   

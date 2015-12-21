@@ -1,6 +1,9 @@
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2012   Daniel Munn <dan.munn@munnster.co.uk>
+# Copyright (C) 2012    Daniel Munn <dan.munn@munnster.co.uk>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -25,7 +28,7 @@ module RedmineDmsf
       include ActionView::Helpers::NumberHelper
 
       def initialize(*args)
-        webdav_setting = Setting.plugin_redmine_dmsf["dmsf_webdav"]
+        webdav_setting = Setting.plugin_redmine_dmsf['dmsf_webdav']
         raise NotFound if !webdav_setting.nil? && webdav_setting.empty?
         super(*args)
       end
@@ -45,10 +48,20 @@ module RedmineDmsf
       def special_type
         nil
       end
+      
+      # Base attribute overriding in order to allow non-ascii characters in path
+      def path
+        @path.force_encoding('utf-8')
+      end
+      
+      # Base attribute overriding in order to allow non-ascii characters in path
+      def public_path
+        @public_path.force_encoding('utf-8')
+      end
 
       #Generate HTML for Get requests
       def html_display
-        @response.body = ""
+        @response.body = ''
         Confict unless collection?
         entities = children.map{|child| 
           DIR_FILE % [
@@ -65,18 +78,24 @@ module RedmineDmsf
           '-',
           '',
           '',
-        ] + entities unless parent.nil?
-        @response.body << index_page % [ path.empty? ? "/" : path, path.empty? ? "/" : path , entities ]
+        ] + entities if parent
+        @response.body << index_page % [ path.empty? ? '/' : path, path.empty? ? '/' : path , entities ]
       end
 
-      #Run method through proxy class - ensuring always compatible child is generated
-      def child(name, options = nil)
-        @__proxy.child(name)
+      # Run method through proxy class - ensuring always compatible child is generated      
+      def child(name)
+        new_public = public_path.dup
+        new_public = new_public + '/' unless new_public[-1,1] == '/'
+        new_public = '/' + new_public unless new_public[0,1] == '/'
+        new_path = path.dup
+        new_path = new_path + '/' unless new_path[-1,1] == '/'
+        new_path = '/' + new_path unless new_path[0,1] == '/'
+        @__proxy.class.new("#{new_public}#{name}", "#{new_path}#{name}", request, response, options.merge(:user => @user))
       end
 
       def parent
         p = @__proxy.parent
-        return nil if p.nil?
+        return nil if p.nil? 
         return p.resource.nil? ? p : p.resource
       end
 
@@ -133,7 +152,7 @@ table { width:100%%; }
 
       #Make it easy to find the path without project in it.
       def projectless_path
-        '/'+path.split('/').drop(2).join('/')
+        '/' + path.split('/').drop(2).join('/')
       end
 
       def path_prefix
@@ -142,5 +161,3 @@ table { width:100%%; }
     end
   end
 end
-
-

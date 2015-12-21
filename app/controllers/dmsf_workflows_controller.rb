@@ -1,6 +1,8 @@
+# encoding: utf-8
+# 
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2011-14 Karel Picman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -27,11 +29,7 @@ class DmsfWorkflowsController < ApplicationController
   layout :workflows_layout
   
   def index    
-    if @project
-      @workflow_pages, @workflows = paginate DmsfWorkflow.where(:project_id => @project.id), :per_page => 25    
-    else      
-      @workflow_pages, @workflows = paginate DmsfWorkflow.where(:project_id => nil), :per_page => 25    
-    end
+    @workflow_pages, @workflows = paginate DmsfWorkflow.global.sorted, :per_page => 25
   end
   
   def action        
@@ -51,17 +49,15 @@ class DmsfWorkflowsController < ApplicationController
               file = DmsfFile.joins(:revisions).where(:dmsf_file_revisions => {:id => revision.id}).first
               if file
                 begin
-                  file.unlock!
+                  file.unlock! true
                 rescue DmsfLockError => e
-                  logger.warn e.message
+                  flash[:info] = e.message
+                  #logger.warn e.message
                 end
               end              
               if revision.workflow == DmsfWorkflow::STATE_APPROVED
-                # Just approved
-                recipients = revision.file.project.members.collect{ |m| m.user }
-                if User.current && User.current.logged? && User.current.pref.no_self_notified
-                  recipients.delete User.current
-                end
+                # Just approved                
+                recipients = DmsfMailer.get_notify_users(@project)
                 recipients.each do |user|
                   DmsfMailer.workflow_notification(
                     user,
@@ -71,25 +67,19 @@ class DmsfWorkflowsController < ApplicationController
                     :text_email_finished_approved,
                     :text_email_to_see_history).deliver if user
                 end
-                if Setting.plugin_redmine_dmsf[:dmsf_display_notified_recipients] == '1'
-                  recipients = revision.file.project.members.collect{ |m| m.user }
-                  if User.current && User.current.logged? && User.current.pref.no_self_notified
-                    recipients.delete User.current
-                  end
-                  unless recipients.empty?
+                if Setting.plugin_redmine_dmsf[:dmsf_display_notified_recipients] == '1'                  
+                  unless recipients.blank?
                     to = recipients.collect{ |r| r.name }.first(DMSF_MAX_NOTIFICATION_RECEIVERS_INFO).join(', ')
                     to << ((recipients.count > DMSF_MAX_NOTIFICATION_RECEIVERS_INFO) ? ',...' : '.')
                     flash[:warning] = l(:warning_email_notifications, :to => to)
                   end
                 end
               else
-                # Just rejected                
+                # Just rejected                                
                 recipients = @dmsf_workflow.participiants
                 recipients.push User.find_by_id revision.dmsf_workflow_assigned_by
                 recipients.uniq!
-                if User.current && User.current.logged? && User.current.pref.no_self_notified
-                  recipients.delete User.current
-                end
+                recipients = recipients & DmsfMailer.get_notify_users(@project)
                 recipients.each do |user|
                   DmsfMailer.workflow_notification(
                     user, 
@@ -98,10 +88,10 @@ class DmsfWorkflowsController < ApplicationController
                     :text_email_subject_rejected,
                     :text_email_finished_rejected,
                     :text_email_to_see_history,
-                    action.note).deliver if user
+                    action.note).deliver
                 end
                 if Setting.plugin_redmine_dmsf[:dmsf_display_notified_recipients] == '1'
-                  unless recipients.empty?
+                  unless recipients.blank?
                     to = recipients.collect{ |r| r.name }.first(DMSF_MAX_NOTIFICATION_RECEIVERS_INFO).join(', ')
                     to << ((recipients.count > DMSF_MAX_NOTIFICATION_RECEIVERS_INFO) ? ',...' : '.')
                     flash[:warning] = l(:warning_email_notifications, :to => to)
@@ -112,7 +102,7 @@ class DmsfWorkflowsController < ApplicationController
               if action.action == DmsfWorkflowStepAction::ACTION_DELEGATE
                 # Delegation                
                 delegate = User.find_by_id params[:step_action].to_i / 10
-                if delegate
+                if DmsfMailer.get_notify_users(@project).include?(delegate)
                   DmsfMailer.workflow_notification(
                     delegate, 
                     @dmsf_workflow, 
@@ -132,25 +122,31 @@ class DmsfWorkflowsController < ApplicationController
                   if assignments.first.dmsf_workflow_step.step != action.dmsf_workflow_step_assignment.dmsf_workflow_step.step
                     # Next step
                     assignments.each do |assignment|
-                      DmsfMailer.workflow_notification(
-                        assignment.user, 
-                        @dmsf_workflow, 
-                        revision,
-                        :text_email_subject_requires_approval,
-                        :text_email_finished_step,
-                        :text_email_to_proceed).deliver if assignment.user
+                      if assignment.user && DmsfMailer.get_notify_users(@project).include?(assignment.user)
+                        DmsfMailer.workflow_notification(
+                          assignment.user, 
+                          @dmsf_workflow, 
+                          revision,
+                          :text_email_subject_requires_approval,
+                          :text_email_finished_step,
+                          :text_email_to_proceed).deliver
+                      end
                     end
                     to = User.find_by_id revision.dmsf_workflow_assigned_by                    
-                    DmsfMailer.workflow_notification(
-                      to, 
-                      @dmsf_workflow, 
-                      revision,
-                      :text_email_subject_updated,
-                      :text_email_finished_step_short,
-                      :text_email_to_see_status).deliver if to
+                    if to && DmsfMailer.get_notify_users(@project).include?(to)
+                      DmsfMailer.workflow_notification(
+                        to, 
+                        @dmsf_workflow, 
+                        revision,
+                        :text_email_subject_updated,
+                        :text_email_finished_step_short,
+                        :text_email_to_see_status).deliver
+                    end
                     if Setting.plugin_redmine_dmsf[:dmsf_display_notified_recipients] == '1'
                       recipients = assignments.collect{ |a| a.user }
-                      recipients << to if to && !recipients.include?(to)
+                      recipients << to if to
+                      recipients.uniq!
+                      recipients = recipients & DmsfMailer.get_notify_users(@project)
                       unless recipients.empty?
                         to = recipients.collect{ |r| r.name }.first(DMSF_MAX_NOTIFICATION_RECEIVERS_INFO).join(', ')
                         to << ((recipients.count > DMSF_MAX_NOTIFICATION_RECEIVERS_INFO) ? ',...' : '.')
@@ -206,33 +202,55 @@ class DmsfWorkflowsController < ApplicationController
   end
   
   def new   
-    @dmsf_workflow = DmsfWorkflow.new        
+    @dmsf_workflow = DmsfWorkflow.new
+    
+    # Reload
+    if params[:dmsf_workflow] && params[:dmsf_workflow][:name].present?
+      @dmsf_workflow.name = params[:dmsf_workflow][:name]
+    elsif params[:dmsf_workflow_id].present?
+      wf = DmsfWorkflow.find_by_id params[:dmsf_workflow_id]
+      @dmsf_workflow.name = wf.name if wf
+    end
+    
+    render :layout => !request.xhr?
   end
   
   def create
-    @dmsf_workflow = DmsfWorkflow.new(:name => params[:name], :project_id => params[:project_id])
-    if request.post? && @dmsf_workflow.save
+    if params[:dmsf_workflow]
+      if (params[:dmsf_workflow_id].to_i > 0)
+        wf = DmsfWorkflow.find_by_id params[:dmsf_workflow_id]
+        @dmsf_workflow = wf.copy_to(@project, params[:dmsf_workflow][:name]) if wf     
+      else
+        @dmsf_workflow = DmsfWorkflow.new
+        @dmsf_workflow.name = params[:dmsf_workflow][:name]
+        @dmsf_workflow.project_id = @project.id if @project
+        @dmsf_workflow.save
+      end
+    end
+    if request.post? && @dmsf_workflow && @dmsf_workflow.valid?
       flash[:notice] = l(:notice_successful_create)
       if @project
         redirect_to settings_project_path(@project, :tab => 'dmsf_workflow')
       else
         redirect_to dmsf_workflows_path
       end
-    else      
+    else            
       render :action => 'new'
     end
   end
   
   def update    
-    if request.put? && @dmsf_workflow.update_attributes({:name => params[:name]})
+    if params[:dmsf_workflow] && @dmsf_workflow.update_attributes(
+        {:name => params[:dmsf_workflow][:name]})
       flash[:notice] = l(:notice_successful_update)
       if @project
         redirect_to settings_project_path(@project, :tab => 'dmsf_workflow')
       else
         redirect_to dmsf_workflows_path
       end    
-    else      
-      render :action => 'edit'
+    else
+      flash[:error] = @dmsf_workflow.errors.full_messages.to_sentence
+      redirect_to dmsf_workflow_path(@dmsf_workflow)
     end
   end
   
@@ -254,22 +272,40 @@ class DmsfWorkflowsController < ApplicationController
     render :layout => false
   end
   
+  def new_step
+    @steps = @dmsf_workflow.dmsf_workflow_steps.collect{|s| s.step}.uniq
+
+    respond_to do |format|
+      format.html 
+      format.js
+    end        
+  end
+  
   def add_step     
-    if request.post?            
-      users = User.find_all_by_id(params[:user_ids])      
+    if request.post?                        
       if params[:step] == '0'
         step = @dmsf_workflow.dmsf_workflow_steps.collect{|s| s.step}.uniq.count + 1        
       else
         step = params[:step].to_i
       end
       operator = (params[:commit] == l(:dmsf_and)) ? DmsfWorkflowStep::OPERATOR_AND : DmsfWorkflowStep::OPERATOR_OR
-      users.each do |user|        
-        @dmsf_workflow.dmsf_workflow_steps << DmsfWorkflowStep.new(
-          :dmsf_workflow_id => @dmsf_workflow.id, 
-          :step => step, 
-          :user_id => user.id, 
-          :operator => operator)
-      end         
+      users = User.where(:id => params[:user_ids]).to_a
+      if users.count > 0
+        users.each do |user|        
+          ws = DmsfWorkflowStep.new
+          ws.dmsf_workflow_id = @dmsf_workflow.id
+          ws.step = step
+          ws.user_id = user.id
+          ws.operator = operator
+          if ws.save
+            @dmsf_workflow.dmsf_workflow_steps << ws
+          else
+            flash[:error] = ws.errors.full_messages.to_sentence
+          end
+        end
+      else
+        flash[:error] = l(:error_workflow_assign)
+      end      
     end             
     respond_to do |format|
       format.html            
@@ -312,23 +348,21 @@ class DmsfWorkflowsController < ApplicationController
     if revision            
       revision.set_workflow(@dmsf_workflow.id, params[:action])
       if revision.save          
-        assignments = @dmsf_workflow.next_assignments revision.id          
-        assignments.each do |assignment|
+        assignments = @dmsf_workflow.next_assignments revision.id
+        recipients = assignments.collect{ |a| a.user }
+        recipients.uniq!
+        recipients = recipients & DmsfMailer.get_notify_users(@project)
+        recipients.each do |user|
           DmsfMailer.workflow_notification(
-            assignment.user,
+            user,
             @dmsf_workflow, 
             revision,
             :text_email_subject_started,
             :text_email_started,
-            :text_email_to_proceed).deliver if assignment.user
+            :text_email_to_proceed).deliver
         end
-        if Setting.plugin_redmine_dmsf[:dmsf_display_notified_recipients] == '1'
-          recipients = assignments.collect { |a| a.user }
-          recipients.uniq!
-          if User.current && User.current.logged? && User.current.pref.no_self_notified
-            recipients.delete User.current
-          end
-          unless recipients.empty?
+        if Setting.plugin_redmine_dmsf[:dmsf_display_notified_recipients] == '1'          
+          unless recipients.blank?
             to = recipients.collect{ |r| r.name }.first(DMSF_MAX_NOTIFICATION_RECEIVERS_INFO).join(', ')
             to << ((recipients.count > DMSF_MAX_NOTIFICATION_RECEIVERS_INFO) ? ',...' : '.')
             flash[:warning] = l(:warning_email_notifications, :to => to)
@@ -350,7 +384,7 @@ private
         @project = @dmsf_workflow.project
       else # Global workflow
         revision = DmsfFileRevision.find_by_id params[:dmsf_file_revision_id]
-        @project = revision.project if revision
+        @project = revision.file.project if revision && revision.file
       end
     else
       if params[:project_id].present?

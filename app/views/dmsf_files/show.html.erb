@@ -1,9 +1,11 @@
 <%#=
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
 # Copyright (C) 2011    Vít Jonáš <vit.jonas@gmail.com>
 # Copyright (C) 2012    Daniel Munn <dan.munn@munnster.co.uk>
-# Copyright (C) 2011-14 Karel Pičman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -46,7 +48,7 @@
         :class => 'icon icon-link') %>
       <%= link_to("#{l(:button_copy)}/#{l(:button_move)}", copy_file_path(:id => @file),
         :title => l(:title_copy), :class => 'icon icon-copy') %>
-      <%= delete_link @file %>
+      <%= delete_link @file if @file_delete_allowed %>
     <% else %>
       <% if (!@file.locked_for_user? || User.current.allowed_to?(:force_file_unlock, @project)) && @file.unlockable? %>
         <%= link_to(l(:button_unlock),
@@ -70,27 +72,21 @@
     <div class="fg-toolbar ui-toolbar ui-widget-header ui-corner-tl ui-corner-tr ui-helper-clearfix">	
       <div class="dataTables_lenght">
         <div class="controls" style="float: right">            
-          <%= link_to_function(
-            '', 
+          <%= link_to_function image_tag('rev_downloads.png', :plugin => 'redmine_dmsf'), 
             "$('#revision_access-#{revision.id}').toggle()", 
-            :title => l(:title_download_entries),
-            :class => 'icon icon-dmsf-rev-downloads') %>
-          <%= link_to('',            
+            :title => l(:title_download_entries) %>
+          <%= link_to image_tag('rev_download.png', :plugin => 'redmine_dmsf'),
             dmsf_file_path(@file, :download => revision),
-            :title => l(:title_title_version_version_download, :title => h(revision.title), :version => revision.version),
-            :class => 'icon icon-dmsf-rev-download') %>
-          <% if User.current.allowed_to?(:file_manipulation, @project) %>          
-             <%= link_to '',
-              delete_revision_path(revision),
-              :data => {:confirm => l(:text_are_you_sure)},
-              :title => l(:title_delete_revision),
-              :class => 'icon icon-dmsf-rev-delete' %>
-          <% end %>
+            :title => l(:title_title_version_version_download, :title => h(revision.title), :version => revision.version) %>
+          <%= link_to image_tag('rev_delete.png', :plugin => 'redmine_dmsf'),
+            delete_revision_path(revision),
+            :data => {:confirm => l(:text_are_you_sure)},
+            :title => l(:title_delete_revision) if @file_delete_allowed && (@file.revisions.visible.count > 1) %>          
         </div>      
         <i><%= l(:info_revision, :rev => revision.id) %></i>
         <%= (revision.source_revision.nil? ? l(:label_created) : l(:label_changed)).downcase %>
         <%= l(:info_changed_by_user, :changed => format_time(revision.updated_at)) %>
-        <%=  link_to(revision.user) %>
+        <%= link_to(revision.user.name, user_path(revision.user)) if revision.user %>
       </div>
     </div>
     <div style="border: 1px solid #e4e4e4;">
@@ -101,7 +97,7 @@
         </div>
         <div class="splitcontentright">			
           <%= label_tag('', "#{l(:label_file)}:") %>
-          <%= ("#{h(revision.folder.dmsf_path_str)}/") if revision.folder %><%= h(revision.name) %>			
+          <%= ("#{h(revision.file.folder.dmsf_path_str)}/") if revision.file.folder %><%= h(revision.name) %>			
         </div>
       </div>
       <p class="no-ident">
@@ -140,11 +136,12 @@
       <div class="no-ident clear">
         <%= render 'dmsf/custom_fields', :object => revision %>
       </div>
-      <div class="splitcontentleft clear">
+      <p class="no-ident">
         <%= label_tag('', "#{l(:label_comment)}:") %>
-        <%= h(revision.comment) %>
-      </div>	     	     
-      <br/>
+      </p>
+      <div class="wiki clear" style="margin-left: 110px">
+        <%= textilizable(revision.comment) %>
+      </div>	     	           
       <div id="<%= "revision_access-#{revision.id}" %>" style="display:none">        
         <%= render(:partial => 'revision_access', :locals => {:revision => revision}) if User.current.allowed_to?(:file_manipulation, @file.project) %>        
       </div>    
@@ -178,14 +175,17 @@
       $('#fileMinorVersionRadio').prop('checked', true); 
     }
     $('#fileSameVersionRadio').prop('disabled', true); 
-  });
+  });  
 
-  $('#newRevisionFormContentToggle').toggle(function() {
-    $('#newRevisionFormContentToggle').text('[-]');
-    $('#newRevisionFormContent').show();
-  }, function() {
-    $('#newRevisionFormContentToggle').text('[+]');
-    $('#newRevisionFormContent').hide();
+  $('#newRevisionFormContentToggle').click(function() {
+    if($('#newRevisionFormContent').is(':visible')) {
+      $(this).text('[+]');
+      $('#newRevisionFormContent').hide();
+    }
+    else {
+      $(this).text('[-]');
+      $('#newRevisionFormContent').show();
+    }    
   });
 
   $('.access-table').dataTable({
@@ -197,14 +197,12 @@
 </script>
 <% if @revision.valid? && @file.valid? %>
   <script type="text/javascript">
-    $('#newRevisionFormContentToggle').text('[+]');
-    $('#newRevisionFormContent').hide();
+    $('#newRevisionFormContentToggle').text('[+]');    
+    $('#newRevisionFormContent').hide();    
   </script>
 <% end %>
 
 <% content_for :header_tags do %>  
-  <%= stylesheet_link_tag 'jquery.dataTables/jquery-ui.dataTables.css', :plugin => 'redmine_dmsf' %>
-  <%= javascript_include_tag 'jquery-1.6.1.min.js', :plugin => 'redmine_dmsf' %>
-  <%= javascript_include_tag 'jquery-ui-1.8.13.min.js', :plugin => 'redmine_dmsf' %>
+  <%= stylesheet_link_tag 'jquery.dataTables/jquery-ui.dataTables.css', :plugin => 'redmine_dmsf' %>  
   <%= javascript_include_tag 'jquery.dataTables/jquery.dataTables.min.js', :plugin => 'redmine_dmsf' %>  
 <% end %>

@@ -1,6 +1,8 @@
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2013   Karel Picman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Picman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -16,12 +18,42 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-class DmsfWorkflow < ActiveRecord::Base 
-  has_many :dmsf_workflow_steps, :dependent => :destroy, :order => 'step ASC, operator DESC'
-
-  validates_uniqueness_of :name, :case_sensitive => false
+class DmsfWorkflow < ActiveRecord::Base  
+  
+  has_many :dmsf_workflow_steps, -> { order 'step ASC, operator DESC' }, :dependent => :destroy  
+      
+  scope :sorted, lambda { order('name ASC') }
+  scope :global, lambda { where('project_id IS NULL') }
+    
+  validate :name_validation
   validates :name, :presence => true
   validates_length_of :name, :maximum => 255
+  
+  def name_validation
+    if self.project_id
+      if self.id
+        if (DmsfWorkflow.where(['(project_id IS NULL OR (project_id = ? AND id != ?)) AND name = ?', 
+            self.project_id, self.name, self.id]).count > 0)
+          errors.add(:name, l('activerecord.errors.messages.taken'))
+        end
+      else
+        if (DmsfWorkflow.where(['(project_id IS NULL OR project_id = ?) AND name = ?', 
+            self.project_id, self.name]).count > 0)
+          errors.add(:name, l('activerecord.errors.messages.taken'))
+        end
+      end
+    else      
+      if self.id
+        if DmsfWorkflow.where(['name = ? AND id != ?', self.name, self.id]).count > 0
+          errors.add(:name, l('activerecord.errors.messages.taken'))
+        end
+      else
+        if DmsfWorkflow.where(:name => self.name).count > 0
+          errors.add(:name, l('activerecord.errors.messages.taken'))
+        end
+      end
+    end
+  end
   
   STATE_NONE = nil
   STATE_ASSIGNED = 3
@@ -148,16 +180,15 @@ class DmsfWorkflow < ActiveRecord::Base
           end
           break if step_is_finished
         end 
-        if step_is_finished
-          break        
-        else
-          steps.each do |step|
-            step.dmsf_workflow_step_assignments.each do |assignment|              
-              results << assignment if assignment.add?(dmsf_file_revision_id)              
-            end
+        break if step_is_finished
+      end
+      unless step_is_finished
+        steps.each do |step|
+          step.dmsf_workflow_step_assignments.each do |assignment|
+            results << assignment if assignment.add?(dmsf_file_revision_id)
           end
-          return results
         end
+        return results
       end
     end
     results
@@ -203,5 +234,17 @@ class DmsfWorkflow < ActiveRecord::Base
         end
     end
     return false
-  end  
+  end 
+  
+  def copy_to(project, name = nil)
+    new_wf = self.dup    
+    new_wf.name = name if name
+    new_wf.project_id = project ? project.id : nil
+    if new_wf.save
+      self.dmsf_workflow_steps.each do |step|
+        step.copy_to(new_wf)
+      end          
+    end
+    return new_wf
+  end
 end

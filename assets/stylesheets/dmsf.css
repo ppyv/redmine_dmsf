@@ -1,7 +1,8 @@
 /*
 * Redmine plugin for Document Management System "Features"
 *
-* Copyright (C) 2011   Vít Jonáš <vit.jonas@gmail.com>
+* Copyright (C) 2011    Vít Jonáš <vit.jonas@gmail.com>
+* Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU General Public License
@@ -28,9 +29,6 @@ button {
 table.entries tbody td, table.entries tbody tr:hover td {
 	border-left: solid 1px #D7D7D7;
 	border-right: solid 1px #D7D7D7;
-}
-
-table.entries  {
 }
 
 table.entries td.modified {
@@ -69,7 +67,9 @@ table.display tbody tr.odd {
 	background-color: #FFFFFF;
 }
 
-table.display tbody tr:hover { background-color:#ffffdd; }
+table.display tbody tr:hover { 
+        background-color:#ffffdd; 
+}
 
 form.dmfs_entries {
 	margin-bottom: 10px;
@@ -125,15 +125,6 @@ td.workflow {
 	white-space: nowrap;
 }
 
-/* DMSF entries list icons */
-
-div.right_icon_box {
-	float: right;
-	white-space: nowrap; 
-	padding: 0 5px 0 5px;
-        width: 96px;
-}
-
 /* DMSF entries upload control */
 
 .dmsf_upload textarea {
@@ -152,7 +143,7 @@ div.right_icon_box {
 	border: none;
 }
 
-.hidden {
+.invisible {
 	display: none;
 }
 
@@ -207,10 +198,6 @@ table.access-table tbody td, table.access-table tbody tr:hover td {
 /* Custom field */
 .dmsf-customfields {
 	margin: 5px 0px 5px 0px;
-}
-
-.dmsf-customfields .customfield {
-
 }
 
 .dmsf-customfields .customfield label {
@@ -275,40 +262,13 @@ table.list td.step {
 .modal{ font-size: 12px}
 
 /* Command icons */
-.icon-margin-left { margin-left: 3px; }
+.dmsf_icon-narrow { padding-left: 16px }
 .icon-link { background-image: url(../images/link.png); }
 .icon-notification-on { background-image: url(../images/notify.png); margin-left: 3px; }
 .icon-notification-off { background-image: url(../images/notifynot.png); margin-left: 3px; }
 .icon-dmsf-lock { background-image: url(../images/lock.png); }
 .icon-dmsf-unlock { background-image: url(../images/unlock.png); }
 .icon-dmsf-locked { background-image: url(../images/locked.png); margin-left: 2px }
-.icon-dmsf-lockedbycurrent { background-image: url(../images/lockedbycurrent.png); margin-left: 2px }
-.icon-dmsf-waiting-for-approval { background-image: url(../images/waiting_for_approval.png); }
-.icon-dmsf-approved { background-image: url(../images/approved.png); }
-.icon-dmsf-assigned { background-image: url(../images/assigned.png); }
-.icon-dmsf-rejected { background-image: url(../images/rejected.png); }
-.icon-dmsf-none { background-image: url(../images/none.png); }
-.icon-dmsf-file-details { background-image: url(../images/filedetails.png); }
-.icon-dmsf-rev-download { background-image: url(../images/rev_download.png); }
-.icon-dmsf-rev-downloads { background-image: url(../images/rev_downloads.png); }
-.icon-dmsf-rev-delete { background-image: url(../images/rev_delete.png); }
-
-.icon-edit-gray { background-image: url(../images/edit_gray.png); }
-.icon-notification-on-gray { background-image: url(../images/notify_gray.png); }
-.icon-notification-off-gray { background-image: url(../images/notifynot_gray.png); }
-.icon-dmsf-lock-gray { background-image: url(../images/lock_gray.png); }
-.icon-dmsf-unlock-gray { background-image: url(../images/unlock_gray.png); }
-.icon-dmsf-waiting-for-approval-gray { background-image: url(../images/waiting_for_approval_gray.png); }
-.icon-dmsf-approved-gray { background-image: url(../images/approved_gray.png); }
-.icon-dmsf-assigned-gray { background-image: url(../images/assigned_gray.png); }
-.icon-dmsf-rejected-gray { background-image: url(../images/rejected_gray.png); }
-.icon-dmsf-file-details-gray { background-image: url(../images/filedetails_gray.png); }
-
-tr.gray .icon-dmsf-locked { background-image: url(../images/locked_gray.png); margin-left: 2px }
-tr.gray .icon-dmsf-lockedbycurrent { background-image: url(../images/lockedbycurrent_gray.png); margin-left: 2px }
-
-tr.gray .icon-dmsf-locked { background-image: url(../images/locked_gray.png); margin-left: 2px }
-tr.gray .icon-dmsf-lockedbycurrent { background-image: url(../images/lockedbycurrent_gray.png); margin-left: 2px }
 
 /* File types */
 tr.gray .icon-folder { background-image: url(../images/folder_gray.png); }
@@ -339,7 +299,7 @@ tr.gray .icon-file.filetype-odg { background-image: url(../images/filetypes/odg_
 
 tr.gray .icon-file.text-x-c { background-image: url(../images/filetypes/c_gray.png); }
 tr.gray .icon-file.text-x-csharp { background-image: url(../images/filetypes/csharp_gray.png); }
-tr.gray .icon-file.text-x-java { background-image: url(../images/files/filetypes_gray.png); }
+tr.gray .icon-file.text-x-java { background-image: url(../images/files/filetypes/java_gray.png); }
 tr.gray .icon-file.text-x-javascript { background-image: url(../images/filetypes/js_gray.png); }
 tr.gray .icon-file.text-x-php { background-image: url(../images/filetypes/php_gray.png); }
 tr.gray .icon-file.text-x-ruby { background-image: url(../images/filetypes/ruby_gray.png); }
@@ -362,3 +322,11 @@ label.required:after {
     content: " *";
     color: #bb0000;
 }
+
+/* Search results */
+dt.dmsf-file { background-image: url(../../../images/document.png); }
+dt.dmsf-folder { background-image: url(../../../images/folder.png); }
+
+.select2-selection{height: 100% !important; min-height: 30px;}
+.select2-selection__rendered{overflow: visible !important; min-height: 30px;}
+.select2-results__options {max-height: 600px !important;}

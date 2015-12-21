@@ -1,6 +1,8 @@
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2014 Karel Pičman <karel.picman@lbcfree.net>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -27,7 +29,7 @@ class CreateDmsfLinks < ActiveRecord::Migration
       t.references :dmsf_folder
       t.boolean :deleted, :default => false, :null => false
       t.integer :deleted_by_user_id
-      t.timestamps
+      t.timestamps :null => false
     end
     add_index :dmsf_links, :project_id   
   end

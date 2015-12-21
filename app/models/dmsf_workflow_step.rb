@@ -1,6 +1,8 @@
+# encoding: utf-8
+#
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2013   Karel Picman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -23,7 +25,7 @@ class DmsfWorkflowStep < ActiveRecord::Base
   validates :step, :presence => true
   validates :user_id, :presence => true
   validates :operator, :presence => true
-  validates_uniqueness_of :user_id, :scope => [:dmsf_workflow_id, :step]
+  validates_uniqueness_of :user_id, :scope => [:dmsf_workflow_id, :step]    
   
   OPERATOR_OR  = 0
   OPERATOR_AND = 1
@@ -55,5 +57,12 @@ class DmsfWorkflowStep < ActiveRecord::Base
         end
       end               
     end      
+  end
+  
+  def copy_to(workflow)
+    new_step = self.dup
+    new_step.dmsf_workflow_id = workflow.id
+    new_step.save
+    return new_step
   end
 end

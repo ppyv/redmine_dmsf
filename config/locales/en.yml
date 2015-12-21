@@ -1,8 +1,10 @@
+# encoding: utf-8
+# 
 # Redmine plugin for Document Management System "Features"
 #
 # Copyright (C) 2011    Vít Jonáš <vit.jonas@gmail.com>
 # Copyright (C) 2012    Daniel Munn <dan.munn@munnster.co.uk>
-# Copyright (C) 2011-14 Karel Pičman <karel.picman@kontron.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -20,14 +22,16 @@
 
 en:
   dmsf: DMSF
-  label_dmsf_file_plural: Dmsf files
+  label_dmsf_file_plural: Documents
+  label_dmsf_file_revision_plural: Document revisions
+  label_dmsf_file_revision_access_plural: Document accesses
   warning_no_entries_selected: No entries selected
   error_email_to_must_be_entered: Email To must be entered  
   warning_file_already_locked: File already locked
   notice_file_locked: File locked
   warning_file_not_locked: File not locked
   notice_file_unlocked: File unlocked
-  error_only_user_that_locked_file_can_unlock_it: Only user that locked file can unlock it  
+  error_only_user_that_locked_file_can_unlock_it: Only user that locked the file can unlock it  
   error_max_files_exceeded: "Limit for %{number} simultaneously downloaded files exceeded"  
   error_entry_project_does_not_match_current_project: "Entry project doesn't match current project"
   notice_folder_created: Folder created
@@ -58,13 +62,15 @@ en:
   link_edit: "Edit %{title}"
   submit_create: Create
   link_create_folder: Create folder
-  title_check_uncheck_all_for_zip_download_or_email: Check/Uncheck all for zip download or email
+  title_check_uncheck_all_for_zip_download_or_email: Check/Uncheck all for zip, download or email
+  title_check_uncheck_all_for_restore_or_delete: Check/Uncheck all for restore or delete
   link_title: Title
   link_size: Size
   link_modified: Modified
   link_ver: Ver.
   link_author: Author
-  title_check_for_zip_download_or_email: Check for Zip download or email
+  title_check_for_zip_download_or_email: Check for zip, download or email
+  title_check_for_restore_or_delete: Check for restore or delete
   title_delete: Delete
   title_notifications_active_deactivate: "Notifications active: Deactivate"
   title_notifications_not_active_activate: "Notifications not active: Activate"
@@ -74,10 +80,8 @@ en:
   title_waiting_for_approval: Waiting for Approval
   title_approved: Approved
   title_unlock_file: Unlock to allow changes for other members
-  title_lock_file: Lock to prevent changes for other members
-  submit_download: Download
-  title_download_checked: Download checked in Zip archive
-  submit_email: Email
+  title_lock_file: Lock to prevent changes for other members  
+  title_download_checked: Download checked in Zip archive  
   title_send_checked_by_email: Send checked by email
   link_user_preferences: Your DMSF project preferences
   heading_send_documents_by_email: Send documents by email
@@ -117,6 +121,7 @@ en:
   option_version_same: Same
   option_version_minor: Minor
   option_version_major: Major
+  option_version_custom: Custom
   label_new_content: New content
   label_maximum_files_upload: Maximum files upload
   note_maximum_number_of_files_uploaded: Limits maximum number of files uploaded at once. 0 means unlimited.
@@ -140,6 +145,8 @@ en:
   heading_uploaded_files: Uploaded Files
   submit_commit: Commit
   link_documents: Documents
+  permission_view_dmsf_file_revision_accesses: View downloads in Activity stream
+  permission_view_dmsf_file_revisions: View revisions in Activity stream
   permission_view_dmsf_folders: Browse documents
   permission_user_preferences: User preferences
   permission_view_dmsf_files: View documents
@@ -147,6 +154,7 @@ en:
   permission_file_manipulation: File manipulation  
   permission_force_file_unlock: Force file unlock
   permission_manage_workflows: Manage workflows
+  permission_file_delete: Delete documents
   label_file: File
   field_folder: Folder
   error_create_cycle_in_folder_dependency: create cycle in folder dependency
@@ -158,7 +166,7 @@ en:
   notice_entries_deleted: Entries deleted
   warning_some_entries_were_not_deleted: "Some entries weren't deleted: %{entries}"  
   title_delete_checked: Delete checked
-  title_number_of_files_in_directory: Number of files in directory
+  title_items: items
   title_filename_for_download: Filename used for download or in Zip archive
   label_number_of_folders: Folders
   label_number_of_documents: Documents  
@@ -172,7 +180,8 @@ en:
   heading_access_downloads_emails: Downloads/Emails
   heading_access_first: First
   heading_access_last: Last
-  label_dmsf_updated: DMSF updated
+  label_dmsf_updated: Updated
+  label_dmsf_downloaded: Downloaded
   title_total_size_of_all_files: Total size of all files under this folder
   project_module_dmsf: DMSF
   warning_no_project_to_copy_file_to: No project to copy file to
@@ -182,7 +191,7 @@ en:
   field_target_project: Target project
   field_target_folder: Target folder
   title_copy_or_move: Copy/Move
-  label_dmsf_folder_plural: Dmsf folders
+  label_dmsf_folder_plural: Folders
   comment_moved_from: "Moved from %{source}"
   error_target_folder_same: Target folder and project are the same as current
   error_file_cannot_be_moved: "File can't be moved"
@@ -198,9 +207,9 @@ en:
   header_minimum_filesize: File Error.
   error_minimum_filesize: "The file %{file} is 0 bytes and will not be attached."
   parent_directory: Parent Directory
-  note_webdav: Webdav once enabled can be found at http://.../dmsf/webdav/
+  note_webdav: "Webdav once enabled can be found at %{protocol}://%{domain}/dmsf/webdav/[project identifier]"
   label_webdav: Webdav functionality
-  label_dmsf_plural: "Copy DMSF files and folders (%{files} files in %{folders} folders)"
+  label_dmsf_plural: "Copy Documents and folders (%{files} files in %{folders} folders)"
 
   warning_folder_already_locked: This folder is already locked
   notice_folder_locked: The folder was successfully locked
@@ -224,7 +233,8 @@ en:
   label_dmsf_workflow_new: New approval workflow  
   field_label_dmsf_workflow: Approval Workflow
   field_label_dmsf_workflow_name: Approval workflow name
-  label_dmsf_workflow_plural: Approval workflows  
+  label_dmsf_workflow_plural: Approval workflows
+  label_dmsf_workflow_plural_num: Approval workflows (%{count})
   label_dmsf_workflow_step: Step
   label_dmsf_workflow_step_plural: Steps
   label_dmsf_workflow_approval: Approval
@@ -280,7 +290,10 @@ en:
   label_notifications_off: Notifications off
   field_target_file: Source file
   title_download_entries: Download entries
+  label_external: External
+
   label_link_name: Link name
+  label_link_external_url: URL
   label_target_folder: Target folder
   label_source_folder: Source folder
   label_target_project: Target project
@@ -291,11 +304,25 @@ en:
   text_email_doc_follows: as follows
   text_email_doc_deleted_subject: "Documents of %{project} deleted"
   text_email_doc_deleted: has just deleted documents of
-  label_links_only: links only
+  label_links_only: links only  
   
   label_display_notified_recipients: Display notified recipients
   note_display_notified_recipients: The user will be informed about all recipients of just sent the email notification.
   warning_email_notifications: "Email notifications sent to %{to}"
+  
+  link_trash_bin: Trash bin
+  title_restore: Restore
+  notice_dmsf_file_restored: The document has been successfully restored
+  notice_dmsf_folder_restored: The folder has been successfully restored
+  notice_dmsf_link_restored: The link has been successfully restored
+  title_restore_checked: Restore checked
+  error_parent_folder: "The parent folder doesn't exist"
+  
+  error_resource_or_parent_locked: Unable to complete lock - resource (or parent) is locked
+  error_parent_locked: Unable to complete lock - resource parent is locked
+  error_resource_locked: Unable to complete lock - resource is locked
+  error_lock_exclusively: unable to lock exclusively an already-locked resource  
+  error_unlock_parent_locked: Unlock failed - resource parent is locked  
   
   my:
     blocks:

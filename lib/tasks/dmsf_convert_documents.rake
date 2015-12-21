@@ -1,6 +1,9 @@
+# encoding: utf-8
+# 
 # Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2011   Vít Jonáš <vit.jonas@gmail.com>
+# Copyright (C) 2011    Vít Jonáš <vit.jonas@gmail.com>
+# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -22,9 +25,9 @@ Convert project documents to DMSF folder/file structure.
 Converted project must have documents and may not have DMSF active!
 
 Available options:
-  * project  => id or identifier of project (defaults to all projects)
-  * dry  => true or false (default false) to perform just check without any conversion
-  * invalid=replace  => to perform document title invalid characters replacement for '-'
+  * project - id or identifier of project (defaults to all projects)
+  * dry - true or false (default false) to perform just check without any conversion
+  * invalid - replace to perform document title invalid characters replacement for '-'
 
 Example:
   rake redmine:dmsf_convert_documents project=test RAILS_ENV="production"
@@ -110,12 +113,13 @@ class DmsfConvertDocuments
               file.name = DmsfFileRevision.remove_extension(file.name) + suffix + File.extname(file.name)
               
               unless File.exist?(attachment.diskfile)
-                puts "Creating file: #{attachment.filename} failed, attachment file doesn't exist"
+                puts "Creating file: #{attachment.filename} failed, attachment file #{attachment.diskfile} doesn't exist"
                 fail = true
                 next
               end
               
               if dry
+                file.id = attachment.id # Just to have an ID there
                 puts "Dry check file: #{file.name}"
                 if file.invalid?
                   file.errors.each {|e,msg| puts "#{e}: #{msg}"}
@@ -126,9 +130,7 @@ class DmsfConvertDocuments
               
               revision = DmsfFileRevision.new
               revision.file = file
-              revision.name = file.name
-              revision.folder = file.folder
-              revision.project = file.project
+              revision.name = file.name              
               revision.title = DmsfFileRevision.filename_to_title(attachment.filename)
               revision.description = attachment.description
               revision.user = attachment.author
@@ -139,19 +141,12 @@ class DmsfConvertDocuments
               revision.comment = 'Converted from documents'
               revision.mime_type = attachment.content_type
               
-              revision.disk_filename = revision.new_storage_filename
-              attachment_file = File.open(attachment.diskfile, 'rb')
+              revision.disk_filename = revision.new_storage_filename              
               
               unless dry
-                File.open(revision.disk_file, 'wb') do |f| 
-                  while (buffer = attachment_file.read(8192))
-                    f.write(buffer)
-                  end
-                end
+                FileUtils.cp(attachment.diskfile, revision.disk_file)                
                 revision.size = File.size(revision.disk_file)
-              end
-
-              attachment_file.close
+              end              
               
               if dry
                 puts "Dry check revision: #{revision.title}"
