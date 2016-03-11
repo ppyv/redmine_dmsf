@@ -3,7 +3,7 @@
 # Redmine plugin for Document Management System "Features"
 #
 # Copyright (C) 2011    Vít Jonáš <vit.jonas@gmail.com>
-# Copyright (C) 2011-15 Karel Pičman <karel.picman@kontron.com>
+# Copyright (C) 2011-16 Karel Pičman <karel.picman@kontron.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -20,11 +20,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 begin
-  require 'estraier'
-  $estraier_bindings_available = true
+  require 'xapian'
+  $xapian_bindings_available = true
 rescue LoadError
-  Rails.logger.info 'REDMAIN_ESTRAIER ERROR: No Ruby bindings for Hyper Estraier installed !!. PLEASE install Hyper Estraier search engine interface for Ruby.'
-  $estraier_bindings_available = false
+  Rails.logger.info 'REDMAIN_XAPIAN ERROR: No Ruby bindings for Xapian installed !!. PLEASE install Xapian search engine interface for Ruby.'
+  $xapian_bindings_available = false
 end
 
 class DmsfFile < ActiveRecord::Base
@@ -98,7 +98,7 @@ class DmsfFile < ActiveRecord::Base
 
   def self.storage_path
     unless @@storage_path.present?
-      @@storage_path = Setting.plugin_redmine_dmsf['dmsf_storage_directory'].strip
+      @@storage_path = Setting.plugin_redmine_dmsf['dmsf_storage_directory'].strip if Setting.plugin_redmine_dmsf['dmsf_storage_directory'].present?
       @@storage_path = Pathname(Redmine::Configuration['attachments_storage_path']).join('dmsf') if @@storage_path.blank? && Redmine::Configuration['attachments_storage_path'].present?
       @@storage_path = Rails.root.join('files/dmsf').to_s if @@storage_path.blank?
       Dir.mkdir(@@storage_path) unless File.exists?(@@storage_path)
@@ -148,6 +148,7 @@ class DmsfFile < ActiveRecord::Base
         save
       end
     rescue Exception => e
+      Rails.logger.error e.message
       errors[:base] << e.message
       return false
     end
@@ -216,9 +217,9 @@ class DmsfFile < ActiveRecord::Base
   def self.allowed_target_projects_on_copy
     projects = []
     if User.current.admin?
-      projects = Project.visible.all
+      projects = Project.visible.has_module('dmsf').all
     elsif User.current.logged?
-      User.current.memberships.each {|m| projects << m.project if m.roles.detect {|r| r.allowed_to?(:file_manipulation)}}
+      User.current.memberships.each {|m| projects << m.project if m.roles.detect {|r| r.allowed_to?(:file_manipulation)} && m.project.module_enabled?('dmsf')}
     end
     projects
   end
@@ -292,7 +293,7 @@ class DmsfFile < ActiveRecord::Base
     project_ids = projects.collect(&:id) if projects           
     
     if options[:offset]      
-       limit_options = ["(dmsf_files.updated_at #{options[:before] ? '<' : '>'} ?", options[:offset]]
+       limit_options = ["dmsf_files.updated_at #{options[:before] ? '<' : '>'} ?", options[:offset]]
     end
     
     if options[:titles_only]
@@ -318,40 +319,56 @@ class DmsfFile < ActiveRecord::Base
     scope = scope.where(project_conditions.join(' AND '))    
     results = scope.where(find_options).uniq.to_a
 
-    if !options[:titles_only] && $estraier_bindings_available
+    if !options[:titles_only] && $xapian_bindings_available
       database = nil
       begin
-        database = Estraier::Database::new
-        database.open(Setting.plugin_redmine_dmsf["dmsf_index_database"].strip, Estraier::Database::DBREADER) 
-      rescue
-        Rails.logger.warn 'REDMAIN_ESTRAIER ERROR: Estraier database is not properly set or initiated or is corrupted.'
+        lang = Setting.plugin_redmine_dmsf['dmsf_stemming_lang'].strip
+        databasepath = File.join(
+          Setting.plugin_redmine_dmsf['dmsf_index_database'].strip, lang)
+        database = Xapian::Database.new(databasepath)
+      rescue Exception => e
+        Rails.logger.warn 'REDMAIN_XAPIAN ERROR: Xapian database is not properly set or initiated or is corrupted.'
+        Rails.logger.warn e.message
       end
 
-      unless database.nil?
-        # create a search condition object
-        cond = Estraier::Condition::new
-    
-        # set the search phrase to the search condition object
-        queryString = tokens.join(options[:all_words] ? ' AND ': ' OR ')
-        cond.set_phrase(queryString )
+      if database
+        enquire = Xapian::Enquire.new(database)
 
-        # get the result of search
-        result = database.search(cond)
+        query_string = tokens.join(' ')
+        qp = Xapian::QueryParser.new()
+        stemmer = Xapian::Stem.new(lang)
+        qp.stemmer = stemmer
+        qp.database = database
 
-        if result
-          # for each document in the result
-          dnum = result.doc_num
-          for i in 0...dnum
-            # retrieve the document object
-            doc = database.get_doc(result.get_doc_id(i), 0)
-            next unless doc
-            # display attributes
-            uri = doc.attr("@uri")
-            if uri
-              filename = uri.sub(/.*\//, '')
-              dmsf_attrs = filename.split("_")
+        case Setting.plugin_redmine_dmsf['dmsf_stemming_strategy'].strip
+          when 'STEM_NONE'
+            qp.stemming_strategy = Xapian::QueryParser::STEM_NONE
+          when 'STEM_SOME'
+            qp.stemming_strategy = Xapian::QueryParser::STEM_SOME
+          when 'STEM_ALL'
+            qp.stemming_strategy = Xapian::QueryParser::STEM_ALL
+        end
+
+        if options[:all_words]
+          qp.default_op = Xapian::Query::OP_AND
+        else
+          qp.default_op = Xapian::Query::OP_OR
+        end
+
+        query = qp.parse_query(query_string)
+
+        enquire.query = query
+        matchset = enquire.mset(0, 1000)
+
+        if matchset          
+          matchset.matches.each { |m|
+            docdata = m.document.data{url}
+            dochash = Hash[*docdata.scan(/(url|sample|modtime|author|type|size)=\/?([^\n\]]+)/).flatten]
+            filename = dochash['url']
+            if filename
+              dmsf_attrs = filename.scan(/^([^\/]+\/[^_]+)_([\d]+)_(.*)$/)
               id_attribute = 0
-              id_attribute = dmsf_attrs[1] if dmsf_attrs.length > 0
+              id_attribute = dmsf_attrs[0][1] if dmsf_attrs.length > 0
               next if dmsf_attrs.length == 0 || id_attribute == 0
               next unless results.select{|f| f.id.to_s == id_attribute}.empty?
               
@@ -367,15 +384,9 @@ class DmsfFile < ActiveRecord::Base
                 end
               end
             end
+          }
         end
-      end    
-
-
-        #close the database
-        unless database.close
-          Rails.logger.warn(database.err_msg(database.error))
-        end
-      end #unless database.nil?
+      end
     end
     
     [results, results.count]
@@ -394,7 +405,37 @@ class DmsfFile < ActiveRecord::Base
   end
   
   def image?
-    self.last_revision && !!(self.last_revision.disk_filename =~ /\.(bmp|gif|jpg|jpe|jpeg|png)$/i)
+    self.last_revision && !!(self.last_revision.disk_filename =~ /\.(bmp|gif|jpg|jpe|jpeg|png|svg)$/i)
+  end
+  
+  def preview(limit)
+    result = 'No preview available'
+    if (self.last_revision.disk_filename =~ /\.(txt|ini|diff|c|cpp|php|csv|rb|h|erb|html|css|py)$/i)
+      begin
+        f = File.new(self.last_revision.disk_file)
+        f.each_line do |line| 
+          case f.lineno
+            when 1
+              result = line
+            when limit.to_i + 1
+              break
+            else
+              result << line              
+          end          
+        end
+      rescue Exception => e
+        result = e.message
+      end
+    end    
+    result
+  end
+  
+  def formatted_name(format)
+    if self.last_revision
+      self.last_revision.formatted_name(format)
+    else
+      self.name
+    end
   end
  
 end

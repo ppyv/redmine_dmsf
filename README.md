@@ -1,7 +1,7 @@
 Redmine DMSF Plugin
 ===================
 
-The current version of Redmine DMSF is **1.5.5** [![Build Status](https://api.travis-ci.org/danmunn/redmine_dmsf.png)](https://travis-ci.org/danmunn/redmine_dmsf)
+The current version of Redmine DMSF is **1.5.6** [![Build Status](https://api.travis-ci.org/danmunn/redmine_dmsf.png)](https://travis-ci.org/danmunn/redmine_dmsf)
 
 Redmine DMSF is Document Management System Features plugin for Redmine issue tracking system; It is aimed to replace current Redmine's Documents module.
 
@@ -33,7 +33,7 @@ Features
   * Integration with Redmine's activity feed
   * Wiki macros for quick content linking
   * Full read/write webdav functionality
-  * Optional document content fulltext search
+  * Optional document content full-text search
   * Documents and folders symbolic links
   * Document tagging
   * Trash bin
@@ -44,7 +44,7 @@ Dependencies
   
   * Redmine 3.0.0 or higher
 
-### Fulltext search (optional)
+### Full-text search (optional)
 
 If you want to use fulltext search abilities:
 
@@ -77,16 +77,20 @@ From Omega documentation:
 
 On Debian use:
 
-```apt-get install libxapian-ruby1.9.1 xapian-omega libxapian-dev xpdf xpdf-utils antiword unzip\
- catdoc libwpd-0.9-9 libwps-0.2-2 gzip unrtf catdvi djview djview3 uuid uuid-dev```
+```sudo apt-get install xapian-omega libxapian-dev xpdf xpdf-utils \
+ antiword unzip catdoc libwpd-tools libwps-tools gzip unrtf catdvi \
+ djview djview3 uuid uuid-dev xz-utils```
 
 On Ubuntu use:
 
-```sudo apt-get install libxapian-ruby1.9.1 xapian-omega libxapian-dev xpdf antiword\
-unzip catdoc libwpd-0.9-9 libwps-0.2-2 gzip unrtf catdvi djview djview3 uuid uuid-dev```
+```sudo apt-get install xapian-omega libxapian-dev xpdf xpdf-utils antiword \
+ unzip catdoc libwpd-tools libwps-tools gzip unrtf catdvi djview djview3 \
+ uuid uuid-dev xz-utils```
 
 On CentOS user:
-```sudo yum install libxapian-ruby1.9.1 xapian-omega libxapian-dev xpdf antiword\ unzip catdoc libwpd-0.9-9 libwps-0.2-2 gzip unrtf catdvi djview djview3 uuid uuid-dev```
+```sudo yum install xapian-omega libxapian-dev xpdf xpdf-utils antiword \
+ unzip catdoc libwpd-tools libwps-tools gzip unrtf catdvi djview djview3 \
+ uuid uuid-dev xz```
 
 Usage
 -----
@@ -106,11 +110,17 @@ Search will now automatically search DMSF content when a Redmine search is perfo
 ####Link to the description of a file with id 17
 `{{dmsfd(17)}}`
 
+####Link to the preview of the first 5 lines from a file with id 17
+`{{dmsft(17, 5)}}`
+
 ####An inline picture of the file with id 8; it must be an image file such as JPEG, PNG,...
 `{{dmsf_image(8)}}`
 
 ####An inline picture with custom size
 `{{dmsf_image(8, size=300)}}`
+
+####An inline picture with custom size
+`{{dmsf_image(8, size=50%)}}`
 
 ####An inline picture with custom size
 `{{dmsf_image(8, size=640x480)}}`
@@ -141,9 +151,9 @@ In the file <redmine_root>/public/help/<language>/wiki_syntax_detailed.html, aft
           <li><strong>{{dmsfd(17)}}</strong> (a link to the description of the file with id 17)</li>
           <li><strong>{{dmsff(5)}}</strong> (a link to the folder with id 5)</li>
           <li><strong>{{dmsff(5, Folder)}}</strong> (a link to the folder with id 5 with the link text "Folder")</li>
-          <li><strong>{{dmsf_image(8)}} (an inline picture of the file with id 8; it must be an image file such as JPEG, PNG,...)</li>
-          <li><strong>{{dmsf_image(8, size=300)}} (an inline picture with custom size)</li>
-          <li><strong>{{dmsf_image(8, size=640x480)}} (an inline picture with custom size)</li>
+          <li><strong>{{dmsf_image(8)}}</strong> (an inline picture of the file with id 8; it must be an image file such as JPEG, PNG,...)</li>
+          <li><strong>{{dmsf_image(8, size=300)}}</strong> (an inline picture with custom size)</li>
+          <li><strong>{{dmsf_image(8, size=640x480)}}</strong> (an inline picture with custom size)</li>
         </ul>
         The DMSF file/revision id can be found in the link for file/revision download from within Redmine.<br />
         The DMSF folder id can be found in the link when opening folders within Redmine.
@@ -156,7 +166,7 @@ In the file <redmine_root>/public/help/<language>/wiki_syntax.html, at the end o
 
 There's a patch that helps you to modify all help files at once. In your Redmine folder:
 
-`cd public/help`
+`cd redmine`
 
 `patch -p0 < plugins/redmine_dmsf/extra/help_files_dmsf.diff`
 
@@ -167,13 +177,14 @@ Setup / Upgrade
 Before installing ensure that the Redmine instance is stopped.
 
 1. In case of upgrade BACKUP YOUR DATABASE first
-2. Put redmine_dmsf plugin directory into plugins
-3. Initialize/Update database: `bundle exec rake redmine:plugins:migrate RAILS_ENV="production"`
-4. The access rights must be set for web server, example: `chown -R www-data:www-data plugins/redmine_dmsf`
-5. Restart web server
-6. You should configure plugin via Redmine interface: Administration -> Plugins -> DMSF -> Configure
-7. Assign DMSF permissions to appropriate roles
-8. There are two rake tasks:
+2. Put redmine_dmsf plugin directory into plugins.
+3. Install dependencies: `bundle install`.
+4. Initialize/Update database: `bundle exec rake redmine:plugins:migrate RAILS_ENV="production"`.
+5. The access rights must be set for web server, example: `chown -R www-data:www-data plugins/redmine_dmsf`.
+6. Restart the web server.
+7. You should configure the plugin via Redmine interface: Administration -> Plugins -> DMSF -> Configure.
+8. Assign DMSF permissions to appropriate roles.
+9. There are two rake tasks:
 
     a) To convert documents from the standard Redmine document module
 
@@ -194,7 +205,7 @@ Before installing ensure that the Redmine instance is stopped.
             rake redmine:dmsf_alert_approvals RAILS_ENV="production"            
 
 ### Fulltext search (optional)
-If you want to use fulltext search features, you must setup file content indexing.
+If you want to use full-text search features, you must setup file content indexing.
 
 It is necessary to index DMSF files with omega before searching attempts to receive some output:
 

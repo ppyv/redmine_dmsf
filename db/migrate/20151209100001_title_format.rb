@@ -1,9 +1,8 @@
 # encoding: utf-8
-## Redmine plugin for Document Management System "Features"
 #
-# Copyright (C) 2011    Vít Jonáš <vit.jonas@gmail.com>
-# Copyright (C) 2012    Daniel Munn <dan.munn@munnster.co.uk>
-# Copyright (C) 2011-16 Karel Pičman <karel.picman@kontron.com>
+# Redmine plugin for Document Management System "Features"
+#
+# Copyright (C) 2015 Karel Pičman <karel.picman@kontorn.com>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -19,16 +18,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-module RedmineDmsf
-  module Test
-    class IntegrationTest < Redmine::IntegrationTest
-      def self.fixtures(*table_names)
-        dir = File.join( File.dirname(__FILE__), '../../../test/fixtures')
-        table_names.each do |x|          
-          ActiveRecord::FixtureSet.create_fixtures(dir, x) if File.exist?("#{dir}/#{x}.yml")
-        end
-        super(table_names)
-      end
-    end
+class TitleFormat < ActiveRecord::Migration
+  def self.up
+    add_column :members, :title_format, :text, :null => true, :limit => 100
+  end
+
+  def self.down
+    remove_column :members, :title_format        
   end
 end
