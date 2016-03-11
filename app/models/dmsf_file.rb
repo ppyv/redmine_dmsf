@@ -20,11 +20,11 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 begin
-  require 'xapian'
-  $xapian_bindings_available = true
+  require 'estraier'
+  $estraier_bindings_available = true
 rescue LoadError
-  Rails.logger.info 'REDMAIN_XAPIAN ERROR: No Ruby bindings for Xapian installed !!. PLEASE install Xapian search engine interface for Ruby.'
-  $xapian_bindings_available = false
+  Rails.logger.info 'REDMAIN_ESTRAIER ERROR: No Ruby bindings for Hyper Estraier installed !!. PLEASE install Hyper Estraier search engine interface for Ruby.'
+  $estraier_bindings_available = false
 end
 
 class DmsfFile < ActiveRecord::Base
@@ -319,56 +319,40 @@ class DmsfFile < ActiveRecord::Base
     scope = scope.where(project_conditions.join(' AND '))    
     results = scope.where(find_options).uniq.to_a
 
-    if !options[:titles_only] && $xapian_bindings_available
+    if !options[:titles_only] && $estraier_bindings_available
       database = nil
       begin
-        lang = Setting.plugin_redmine_dmsf['dmsf_stemming_lang'].strip
-        databasepath = File.join(
-          Setting.plugin_redmine_dmsf['dmsf_index_database'].strip, lang)
-        database = Xapian::Database.new(databasepath)
-      rescue Exception => e
-        Rails.logger.warn 'REDMAIN_XAPIAN ERROR: Xapian database is not properly set or initiated or is corrupted.'
-        Rails.logger.warn e.message
+        database = Estraier::Database::new
+        database.open(Setting.plugin_redmine_dmsf["dmsf_index_database"].strip, Estraier::Database::DBREADER) 
+      rescue
+        Rails.logger.warn 'REDMAIN_ESTRAIER ERROR: Estraier database is not properly set or initiated or is corrupted.'
       end
 
-      if database
-        enquire = Xapian::Enquire.new(database)
+      unless database.nil?
+        # create a search condition object
+        cond = Estraier::Condition::new
+    
+        # set the search phrase to the search condition object
+        queryString = tokens.join(options[:all_words] ? ' AND ': ' OR ')
+        cond.set_phrase(queryString )
 
-        query_string = tokens.join(' ')
-        qp = Xapian::QueryParser.new()
-        stemmer = Xapian::Stem.new(lang)
-        qp.stemmer = stemmer
-        qp.database = database
+        # get the result of search
+        result = database.search(cond)
 
-        case Setting.plugin_redmine_dmsf['dmsf_stemming_strategy'].strip
-          when 'STEM_NONE'
-            qp.stemming_strategy = Xapian::QueryParser::STEM_NONE
-          when 'STEM_SOME'
-            qp.stemming_strategy = Xapian::QueryParser::STEM_SOME
-          when 'STEM_ALL'
-            qp.stemming_strategy = Xapian::QueryParser::STEM_ALL
-        end
-
-        if options[:all_words]
-          qp.default_op = Xapian::Query::OP_AND
-        else
-          qp.default_op = Xapian::Query::OP_OR
-        end
-
-        query = qp.parse_query(query_string)
-
-        enquire.query = query
-        matchset = enquire.mset(0, 1000)
-
-        if matchset          
-          matchset.matches.each { |m|
-            docdata = m.document.data{url}
-            dochash = Hash[*docdata.scan(/(url|sample|modtime|author|type|size)=\/?([^\n\]]+)/).flatten]
-            filename = dochash['url']
-            if filename
-              dmsf_attrs = filename.scan(/^([^\/]+\/[^_]+)_([\d]+)_(.*)$/)
+        if result
+          # for each document in the result
+          dnum = result.doc_num
+          for i in 0...dnum
+            # retrieve the document object
+            doc = database.get_doc(result.get_doc_id(i), 0)
+            next unless doc
+            # display attributes
+            uri = doc.attr("@uri")
+            if uri
+              filename = uri.sub(/.*\//, '')
+              dmsf_attrs = filename.split("_")
               id_attribute = 0
-              id_attribute = dmsf_attrs[0][1] if dmsf_attrs.length > 0
+              id_attribute = dmsf_attrs[1] if dmsf_attrs.length > 0
               next if dmsf_attrs.length == 0 || id_attribute == 0
               next unless results.select{|f| f.id.to_s == id_attribute}.empty?
               
@@ -384,9 +368,15 @@ class DmsfFile < ActiveRecord::Base
                 end
               end
             end
-          }
         end
-      end
+      end    
+
+
+        #close the database
+        unless database.close
+          Rails.logger.warn(database.err_msg(database.error))
+        end
+      end #unless database.nil?
     end
     
     [results, results.count]
